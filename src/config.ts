@@ -10,10 +10,6 @@ export interface UserMapping {
 }
 
 export interface StreamConfig {
-  expansions: string[];
-  userFields: string[];
-  tweetFields: string[];
-  mediaFields?: string[];
   reconnect?: {
     enabled?: boolean;
     maxRetries?: number;

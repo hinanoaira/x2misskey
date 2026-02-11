@@ -12,9 +12,17 @@ X (Twitter) のストリーミング API からリアルタイムに投稿を取
 
 ## セットアップ
 
-### 1. config.json を編集
+### 1. config.json を作成
 
-[config.json](config.json) で以下を設定します：
+[config_example.json](config_example.json) をコピーして `config.json` を作成します：
+
+```bash
+cp config_example.json config.json
+```
+
+### 2. config.json を編集
+
+作成した `config.json` で以下を設定します：
 
 ```json
 {
@@ -31,37 +39,27 @@ X (Twitter) のストリーミング API からリアルタイムに投稿を取
     }
   ],
   "stream": {
-    "expansions": ["author_id", "created_at"]
+    "reconnect": {
+      "enabled": true,
+      "maxRetries": -1,
+      "initialDelayMs": 1000,
+      "maxDelayMs": 60000,
+      "backoffMultiplier": 2
+    }
   }
 }
 ```
 
-#### 重要な項目
+#### 設定項目
 
 | 項目            | 説明                                            |
 | --------------- | ----------------------------------------------- |
 | `xUserId`       | X のユーザーID（数字）。投稿者の ID です        |
 | `misskeyServer` | Misskey サーバーの URL（`https://` から始まる） |
 | `misskeyToken`  | Misskey の API トークン                         |
+| `bearerToken`   | X API の Bearer Token                           |
 
-#### ストリーミング設定（`stream` セクション）
-
-```json
-"stream": {
-  "expansions": ["author_id", "attachments.media_keys"],
-  "userFields": ["id", "name", "username"],
-  "tweetFields": ["created_at", "public_metrics"],
-  "reconnect": {
-    "enabled": true,
-    "maxRetries": -1,
-    "initialDelayMs": 1000,
-    "maxDelayMs": 60000,
-    "backoffMultiplier": 2
-  }
-}
-```
-
-**再接続設定の説明:**
+#### 再接続設定の説明
 
 | オプション          | デフォルト | 説明                                  |
 | ------------------- | ---------- | ------------------------------------- |
@@ -71,20 +69,13 @@ X (Twitter) のストリーミング API からリアルタイムに投稿を取
 | `maxDelayMs`        | `60000`    | 最大再接続待機時間（ミリ秒）          |
 | `backoffMultiplier` | `2`        | 待機時間の乗数（Exponential backoff） |
 
-**再接続の仕組み:**
-
-- ストリーム接続が切れると、`initialDelayMs` ミリ秒待機してから再接続を試みます
-- 再接続に失敗するたびに、待機時間は `backoffMultiplier` 倍になります
-- 待機時間が `maxDelayMs` を超えないよう制限されます
-- `Ctrl+C` でプロセスを停止すると、安全に終了します
-
-### 2. 依存関係をインストール
+### 3. 依存関係をインストール
 
 ```bash
 yarn install
 ```
 
-### 3. ビルド
+### 4. ビルド
 
 ```bash
 yarn build

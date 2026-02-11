@@ -1,38 +1,24 @@
 {
   "xapi": {
-    "bearerToken": "bearer_token"
+    "bearerToken": "YOUR_X_BEARER_TOKEN"
   },
   "userMappings": [
     {
-      "xUserId": "xuser_id",
-      "misskeyServer": "https://misskey.example",
-      "misskeyToken": "misskey_token",
-      "misskeyUserId": "misskey_user_id",
+      "xUserId": "123456789",
+      "misskeyServer": "https://misskey.example.com",
+      "misskeyToken": "YOUR_MISSKEY_TOKEN",
+      "misskeyUserId": "@username@misskey.example.com",
       "enabled": true
+    },
+    {
+      "xUserId": "987654321",
+      "misskeyServer": "https://misskey2.example.com",
+      "misskeyToken": "YOUR_MISSKEY_TOKEN_2",
+      "misskeyUserId": "@username2@misskey2.example.com",
+      "enabled": false
     }
   ],
   "stream": {
-    "expansions": [
-      "author_id",
-      "attachments.media_keys"
-    ],
-    "userFields": [
-      "id",
-      "name",
-      "username"
-    ],
-    "tweetFields": [
-      "created_at",
-      "public_metrics",
-      "entities",
-      "possibly_sensitive"
-    ],
-    "mediaFields": [
-      "url",
-      "type",
-      "alt_text",
-      "non_public_metrics"
-    ],
     "reconnect": {
       "enabled": true,
       "maxRetries": -1,

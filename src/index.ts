@@ -14,7 +14,7 @@ async function main() {
     const xClient = new XStreamClient(config);
 
     // ツイートルーターを初期化
-    const router = new TweetRouter(config);
+    const router = new TweetRouter(config, xClient);
 
     // Misskeyサーバーへの接続をテスト
     await router.testAllConnections();

@@ -1,14 +1,22 @@
 import type { AppConfig } from "./config.js";
 import { getAiMappingByXUserId, getAllEnabledMappings } from "./config.js";
 import { MisskeyClient } from "./misskey-client.js";
-import type { StreamMessage } from "./x-client.js";
+import {
+  type StreamMessage,
+  type TweetEntityUrl,
+  type TweetMention,
+  type Tweet,
+  XStreamClient,
+} from "./x-client.js";
 
 export class TweetRouter {
   private config: AppConfig;
   private misskeyClients: Map<string, MisskeyClient>;
+  private xClient: XStreamClient;
 
-  constructor(config: AppConfig) {
+  constructor(config: AppConfig, xClient: XStreamClient) {
     this.config = config;
+    this.xClient = xClient;
     this.misskeyClients = new Map();
 
     // 有効なマッピング用にMisskeyクライアントを初期化
@@ -38,6 +46,24 @@ export class TweetRouter {
       return;
     }
 
+    // リプライチェック
+    if (tweet.conversation_id) {
+      // リプライツイート：直系の親をたどってチェック
+      const conversationTweets = await this.xClient.getConversationTweets(
+        tweet.conversation_id,
+      );
+      const isMixedReplyChain = await this._hasOtherUsersInParentChain(
+        tweet,
+        conversationTweets,
+      );
+      if (isMixedReplyChain) {
+        console.debug(
+          `Tweet ${tweet.id} is part of a mixed reply chain, skipping`,
+        );
+        return;
+      }
+    }
+
     const misskeyClient = this.misskeyClients.get(authorId);
     if (!misskeyClient) {
       console.error(`No Misskey client found for user ${authorId}`);
@@ -52,6 +78,7 @@ export class TweetRouter {
       const cleanedText = this.buildCleanTweetText(
         tweet.text,
         tweet.entities?.urls,
+        tweet.entities?.mentions,
         Boolean(tweet.attachments),
       );
 
@@ -75,7 +102,8 @@ export class TweetRouter {
 
   private buildCleanTweetText(
     text: string,
-    urls?: Array<{ url: string; expanded_url?: string; display_url?: string }>,
+    urls?: TweetEntityUrl[],
+    mentions?: TweetMention[],
     hasAttachments?: boolean,
   ): string {
     let tweetText = text || "";
@@ -84,15 +112,50 @@ export class TweetRouter {
       tweetText = tweetText.replace(/\s?https:\/\/t\.co\/[a-zA-Z0-9]+$/, "");
     }
 
+    // URL と メンションを位置情報で置換（後ろから処理するため逆順に結合してソート）
+    const entities: Array<{
+      type: "url" | "mention";
+      start: number;
+      end: number;
+      replacement: string;
+    }> = [];
+
+    // URL エンティティを追加
     if (urls?.length) {
       for (const url of urls) {
         const displayUrl = url.display_url || url.expanded_url || url.url;
         const expandedUrl = url.expanded_url || url.url;
-        tweetText = tweetText.replaceAll(
-          url.url,
-          `[${displayUrl}](${expandedUrl})`,
-        );
+        entities.push({
+          type: "url",
+          start: url.start,
+          end: url.end,
+          replacement: `[${displayUrl}](${expandedUrl})`,
+        });
       }
+    }
+
+    // メンション エンティティを追加
+    if (mentions?.length) {
+      for (const mention of mentions) {
+        const placeholder = `?[@${mention.username}](https://x.com/${mention.username})`;
+        entities.push({
+          type: "mention",
+          start: mention.start,
+          end: mention.end,
+          replacement: placeholder,
+        });
+      }
+    }
+
+    // 位置でソート（後ろから置換するため逆順）
+    entities.sort((a, b) => b.start - a.start);
+
+    // 後ろから置換
+    for (const entity of entities) {
+      tweetText =
+        tweetText.substring(0, entity.start) +
+        entity.replacement +
+        tweetText.substring(entity.end);
     }
 
     return tweetText
@@ -155,5 +218,46 @@ export class TweetRouter {
         console.error(`✗ Failed to connect to Misskey for X user ${xUserId}`);
       }
     }
+  }
+
+  private async _hasOtherUsersInParentChain(
+    tweet: Tweet,
+    conversationTweets: Tweet[],
+  ): Promise<boolean> {
+    // ツイートIDtoTweetのマップを作成
+    const tweetMap = new Map<string, Tweet>();
+    for (const tweet of conversationTweets) {
+      tweetMap.set(tweet.id, tweet);
+    }
+
+    // 現在のツイートから直系の親をたどる
+    let currentTweet: Tweet | undefined = tweet;
+
+    while (true) {
+      // referenced_tweetsから親ツイートのIDを取得
+      const replyToId = currentTweet.referenced_tweets?.find(
+        (ref) => ref.type === "replied_to",
+      )?.id;
+
+      if (replyToId) {
+        const parentTweet = tweetMap.get(replyToId);
+        if (parentTweet) {
+          currentTweet = parentTweet;
+        } else {
+          // 親ツイートが見つからない
+          break;
+        }
+      } else {
+        // これ以上親がいない
+        break;
+      }
+
+      // 親ツイートの著者が現在のツイートの著者と異なる場合、混在チェーンと判断
+      if (currentTweet.author_id !== tweet.author_id) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

@@ -6,14 +6,39 @@ export interface TweetEntityUrl {
   url: string;
   expanded_url?: string;
   display_url?: string;
+  media_key?: string;
+  start: number;
+  end: number;
+}
+
+export interface TweetMention {
+  id: string;
+  username: string;
+  start: number;
+  end: number;
+}
+
+export interface TweetAnnotation {
+  start: number;
+  end: number;
+  probability: number;
+  type: string;
+  normalized_text: string;
 }
 
 export interface TweetEntities {
   urls?: TweetEntityUrl[];
+  mentions?: TweetMention[];
+  annotations?: TweetAnnotation[];
 }
 
 export interface TweetAttachments {
   media_keys?: string[];
+}
+
+export interface ReferencedTweet {
+  type: string;
+  id: string;
 }
 
 export interface Tweet {
@@ -21,14 +46,19 @@ export interface Tweet {
   text: string;
   author_id?: string;
   created_at?: string;
+  conversation_id?: string;
+  referenced_tweets?: ReferencedTweet[];
   entities?: TweetEntities;
   attachments?: TweetAttachments;
   possibly_sensitive?: boolean;
+  edit_history_tweet_ids?: string[];
   public_metrics?: {
     like_count: number;
     retweet_count: number;
     reply_count: number;
     quote_count: number;
+    bookmark_count?: number;
+    impression_count?: number;
   };
 }
 
@@ -57,6 +87,28 @@ export class XStreamClient {
   private stream?: any;
   private shouldStop = false;
   private retryCount = 0;
+
+  // API パラメータ（固定値）
+  private readonly EXPANSIONS = [
+    "author_id",
+    "attachments.media_keys",
+    "referenced_tweets.id",
+  ];
+  private readonly USER_FIELDS = ["id", "name", "username"];
+  private readonly TWEET_FIELDS = [
+    "created_at",
+    "public_metrics",
+    "entities",
+    "possibly_sensitive",
+    "conversation_id",
+    "referenced_tweets",
+  ];
+  private readonly MEDIA_FIELDS = [
+    "url",
+    "type",
+    "alt_text",
+    "non_public_metrics",
+  ];
 
   constructor(config: AppConfig) {
     this.config = config;
@@ -133,15 +185,11 @@ export class XStreamClient {
     onMessage: (message: StreamMessage) => Promise<void>,
   ): Promise<void> {
     const params = new URLSearchParams({
-      expansions: this.config.stream.expansions.join(","),
-      "user.fields": this.config.stream.userFields.join(","),
-      "tweet.fields": this.config.stream.tweetFields.join(","),
+      expansions: this.EXPANSIONS.join(","),
+      "user.fields": this.USER_FIELDS.join(","),
+      "tweet.fields": this.TWEET_FIELDS.join(","),
+      "media.fields": this.MEDIA_FIELDS.join(","),
     });
-
-    // メディアフィールドを追加（存在する場合）
-    if (this.config.stream.mediaFields?.length) {
-      params.append("media.fields", this.config.stream.mediaFields.join(","));
-    }
 
     console.log(
       `接続中...${this.retryCount > 0 ? `(リトライ: ${this.retryCount})` : ""}`,
@@ -244,16 +292,46 @@ export class XStreamClient {
   async getTweet(tweetId: string): Promise<Tweet> {
     const response = await this.client.get(`/2/tweets/${tweetId}`, {
       params: {
-        expansions: this.config.stream.expansions.join(","),
-        "user.fields": this.config.stream.userFields.join(","),
-        "tweet.fields": this.config.stream.tweetFields.join(","),
-        ...(this.config.stream.mediaFields?.length
-          ? {
-              "media.fields": this.config.stream.mediaFields.join(","),
-            }
-          : {}),
+        expansions: this.EXPANSIONS.join(","),
+        "user.fields": this.USER_FIELDS.join(","),
+        "tweet.fields": this.TWEET_FIELDS.join(","),
+        "media.fields": this.MEDIA_FIELDS.join(","),
       },
     });
     return response.data.data;
+  }
+
+  async getConversationTweets(conversationId: string): Promise<Tweet[]> {
+    const allTweets: Tweet[] = [];
+
+    try {
+      const query = `conversation_id:${conversationId} -is:retweet`;
+      let nextToken: string | undefined;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await this.client.get("/2/tweets/search/recent", {
+          params: {
+            query,
+            max_results: 100,
+            ...(nextToken ? { next_token: nextToken } : {}),
+            expansions: this.EXPANSIONS.join(","),
+            "user.fields": this.USER_FIELDS.join(","),
+            "tweet.fields": this.TWEET_FIELDS.join(","),
+            "media.fields": this.MEDIA_FIELDS.join(","),
+          },
+        });
+
+        const tweets = response.data.data || [];
+        allTweets.push(...tweets);
+
+        nextToken = response.data.meta?.next_token;
+        hasMore = !!nextToken;
+      }
+    } catch (error) {
+      console.error("Error fetching conversation tweets:", error);
+    }
+
+    return allTweets;
   }
 }
