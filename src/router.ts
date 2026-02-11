@@ -112,50 +112,24 @@ export class TweetRouter {
       tweetText = tweetText.replace(/\s?https:\/\/t\.co\/[a-zA-Z0-9]+$/, "");
     }
 
-    // URL と メンションを位置情報で置換（後ろから処理するため逆順に結合してソート）
-    const entities: Array<{
-      type: "url" | "mention";
-      start: number;
-      end: number;
-      replacement: string;
-    }> = [];
-
-    // URL エンティティを追加
+    // URL エンティティの置換
     if (urls?.length) {
       for (const url of urls) {
         const displayUrl = url.display_url || url.expanded_url || url.url;
         const expandedUrl = url.expanded_url || url.url;
-        entities.push({
-          type: "url",
-          start: url.start,
-          end: url.end,
-          replacement: `[${displayUrl}](${expandedUrl})`,
-        });
+        tweetText = tweetText.replaceAll(
+          url.url,
+          `[${displayUrl}](${expandedUrl})`,
+        );
       }
     }
 
-    // メンション エンティティを追加
+    // メンション エンティティの置換
     if (mentions?.length) {
       for (const mention of mentions) {
         const placeholder = `?[@${mention.username}](https://x.com/${mention.username})`;
-        entities.push({
-          type: "mention",
-          start: mention.start,
-          end: mention.end,
-          replacement: placeholder,
-        });
+        tweetText = tweetText.replaceAll(`@${mention.username}`, placeholder);
       }
-    }
-
-    // 位置でソート（後ろから置換するため逆順）
-    entities.sort((a, b) => b.start - a.start);
-
-    // 後ろから置換
-    for (const entity of entities) {
-      tweetText =
-        tweetText.substring(0, entity.start) +
-        entity.replacement +
-        tweetText.substring(entity.end);
     }
 
     return tweetText
