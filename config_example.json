@@ -1,0 +1,44 @@
+{
+  "xapi": {
+    "bearerToken": "bearer_token"
+  },
+  "userMappings": [
+    {
+      "xUserId": "xuser_id",
+      "misskeyServer": "https://misskey.example",
+      "misskeyToken": "misskey_token",
+      "misskeyUserId": "misskey_user_id",
+      "enabled": true
+    }
+  ],
+  "stream": {
+    "expansions": [
+      "author_id",
+      "attachments.media_keys"
+    ],
+    "userFields": [
+      "id",
+      "name",
+      "username"
+    ],
+    "tweetFields": [
+      "created_at",
+      "public_metrics",
+      "entities",
+      "possibly_sensitive"
+    ],
+    "mediaFields": [
+      "url",
+      "type",
+      "alt_text",
+      "non_public_metrics"
+    ],
+    "reconnect": {
+      "enabled": true,
+      "maxRetries": -1,
+      "initialDelayMs": 1000,
+      "maxDelayMs": 60000,
+      "backoffMultiplier": 2
+    }
+  }
+}
