@@ -79,7 +79,6 @@ export class TweetRouter {
         tweet.text,
         tweet.entities?.urls,
         tweet.entities?.mentions,
-        Boolean(tweet.attachments),
       );
 
       const noteContent = `${cleanedText}\n\nOriginal: ?[${tweetUrl}](${tweetUrl})`;
@@ -104,17 +103,17 @@ export class TweetRouter {
     text: string,
     urls?: TweetEntityUrl[],
     mentions?: TweetMention[],
-    hasAttachments?: boolean,
   ): string {
     let tweetText = text || "";
-
-    if (hasAttachments) {
-      tweetText = tweetText.replace(/\s?https:\/\/t\.co\/[a-zA-Z0-9]+$/, "");
-    }
 
     // URL エンティティの置換
     if (urls?.length) {
       for (const url of urls) {
+        if (url.media_key) {
+          // メディアURLはテキストから削除（添付ファイルとして処理するため）
+          tweetText = tweetText.replaceAll(url.url, "");
+          continue;
+        }
         const displayUrl = url.display_url || url.expanded_url || url.url;
         const expandedUrl = url.expanded_url || url.url;
         tweetText = tweetText.replaceAll(
