@@ -144,23 +144,46 @@ export class TweetRouter {
     isSensitive: boolean,
   ): Promise<string[]> {
     const mediaItems = message.includes?.media || [];
-    const photoItems = mediaItems.filter(
-      (media) => media.type === "photo" && media.url,
-    );
-
-    if (photoItems.length === 0) {
-      return [];
-    }
 
     const fileIds: string[] = [];
-    for (const media of photoItems) {
+
+    for (const media of mediaItems) {
+      console.log(media);
+      let mediaUrl: string | undefined;
+
+      if (media.type === "photo") {
+        mediaUrl = media.url;
+      } else if (media.type === "video" && media.variants) {
+        // 動画の場合、variantsから最高品質のmp4を選択
+        const mp4Variants = media.variants.filter(
+          (v) => v.content_type === "video/mp4" && v.url,
+        );
+
+        if (mp4Variants.length > 0) {
+          // bit_rateが最も高いものを選択
+          const bestVariant = mp4Variants.reduce((best, current) => {
+            const bestBitRate = best.bit_rate || 0;
+            const currentBitRate = current.bit_rate || 0;
+            return currentBitRate > bestBitRate ? current : best;
+          });
+          mediaUrl = bestVariant.url;
+        }
+      }
+      console.log(`Selected media URL for upload: ${mediaUrl}`);
+      if (!mediaUrl) {
+        console.warn(
+          `No URL found for media ${media.media_key} (type: ${media.type})`,
+        );
+        continue;
+      }
+
       const uploadOptions = {
         isSensitive,
         ...(media.alt_text ? { altText: media.alt_text } : {}),
       };
 
       const fileId = await misskeyClient.uploadMediaFromUrl(
-        media.url!,
+        mediaUrl,
         uploadOptions,
       );
 

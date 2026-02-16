@@ -552,7 +552,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"form-data@npm:^4.0.5":
+"form-data@npm:^4.0.4, form-data@npm:^4.0.5":
   version: 4.0.5
   resolution: "form-data@npm:4.0.5"
   dependencies:
@@ -1150,6 +1150,7 @@ __metadata:
     "@types/node": "npm:^25.2.3"
     "@xdevplatform/xdk": "npm:^0.4.0"
     axios: "npm:^1.13.5"
+    form-data: "npm:^4.0.4"
     tsx: "npm:^4.21.0"
     typescript: "npm:^5.9.3"
   languageName: unknown

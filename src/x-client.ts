@@ -62,11 +62,20 @@ export interface Tweet {
   };
 }
 
+export interface MediaVariant {
+  bit_rate?: number;
+  content_type: string;
+  url: string;
+}
+
 export interface MediaItem {
   media_key: string;
   type: string;
   url?: string;
   alt_text?: string;
+  variants?: MediaVariant[];
+  preview_image_url?: string;
+  duration_ms?: number;
 }
 
 export interface StreamMessage {
@@ -107,7 +116,9 @@ export class XStreamClient {
     "url",
     "type",
     "alt_text",
-    "non_public_metrics",
+    "variants",
+    "preview_image_url",
+    "duration_ms",
   ];
 
   constructor(config: AppConfig) {

@@ -1,5 +1,14 @@
 import axios from "axios";
 import type { AxiosInstance } from "axios";
+import FormData from "form-data";
+import { randomUUID } from "node:crypto";
+import { createReadStream, createWriteStream } from "node:fs";
+import { unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Readable } from "node:stream";
+import type { ReadableStream as WebReadableStream } from "node:stream/web";
+import { pipeline } from "node:stream/promises";
 import type { UserMapping } from "./config.js";
 
 export class MisskeyClient {
@@ -44,20 +53,27 @@ export class MisskeyClient {
     mediaUrl: string,
     options?: { altText?: string; isSensitive?: boolean },
   ): Promise<string | null> {
+    let tempPath: string | null = null;
+
     try {
       const imageRes = await fetch(mediaUrl);
       if (!imageRes.ok) {
         throw new Error(`Failed to fetch media: ${imageRes.status}`);
       }
 
-      const arrayBuffer = await imageRes.arrayBuffer();
-      const blob = new Blob([arrayBuffer]);
-      const fileName = mediaUrl.split("/").pop() || "media";
+      if (!imageRes.body) {
+        throw new Error("Failed to fetch media: empty response body");
+      }
+
+      const fileName = (mediaUrl.split("/").pop() || "media").split("?")[0];
+      tempPath = join(tmpdir(), `x2misskey-${randomUUID()}-${fileName}`);
+      const webStream = imageRes.body as unknown as WebReadableStream;
+      await pipeline(Readable.fromWeb(webStream), createWriteStream(tempPath));
 
       const formData = new FormData();
       formData.append("i", this.mapping.misskeyToken);
       formData.append("force", "true");
-      formData.append("file", blob, fileName);
+      formData.append("file", createReadStream(tempPath), fileName);
       formData.append("name", fileName);
       formData.append("isSensitive", options?.isSensitive ? "true" : "false");
 
@@ -66,29 +82,32 @@ export class MisskeyClient {
         formData.append("comment", trimmedAltText);
       }
 
-      const uploadRes = await fetch(
-        `${this.mapping.misskeyServer}/api/drive/files/create`,
+      const uploadRes = await this.client.post(
+        "/api/drive/files/create",
+        formData,
         {
-          method: "POST",
-          body: formData,
+          headers: formData.getHeaders(),
         },
       );
 
-      if (!uploadRes.ok) {
-        const bodyText = await uploadRes.text();
-        throw new Error(
-          `Misskey upload failed: ${uploadRes.status} ${bodyText}`,
-        );
-      }
-
-      const fileData = await uploadRes.json();
-      return fileData.id || null;
+      return uploadRes.data?.id || null;
     } catch (error) {
       console.error(
         `Failed to upload media to ${this.mapping.misskeyServer}:`,
         error instanceof Error ? error.message : error,
       );
       return null;
+    } finally {
+      if (tempPath) {
+        try {
+          await unlink(tempPath);
+        } catch (cleanupError) {
+          console.warn(
+            `Failed to remove temp file ${tempPath}:`,
+            cleanupError instanceof Error ? cleanupError.message : cleanupError,
+          );
+        }
+      }
     }
   }
 
