@@ -148,7 +148,6 @@ export class TweetRouter {
     const fileIds: string[] = [];
 
     for (const media of mediaItems) {
-      console.log(media);
       let mediaUrl: string | undefined;
 
       if (media.type === "photo") {
@@ -169,7 +168,6 @@ export class TweetRouter {
           mediaUrl = bestVariant.url;
         }
       }
-      console.log(`Selected media URL for upload: ${mediaUrl}`);
       if (!mediaUrl) {
         console.warn(
           `No URL found for media ${media.media_key} (type: ${media.type})`,
