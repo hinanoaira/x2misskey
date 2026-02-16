@@ -134,10 +134,10 @@ export class XStreamClient {
     this.shouldStop = false;
     this.retryCount = 0;
 
-    console.log("📡 X APIのストリーミングを開始します...");
+    console.log("Starting X API stream...");
     if (isReconnectEnabled) {
       console.log(
-        `自動再接続: 有効 (最大リトライ: ${maxRetries === -1 ? "無制限" : maxRetries})`,
+        `Auto-reconnect: enabled (max retries: ${maxRetries === -1 ? "unlimited" : maxRetries})`,
       );
     }
 
@@ -146,12 +146,12 @@ export class XStreamClient {
         await this._connectStream(onMessage);
         // ストリームが正常にクローズした場合
         if (!isReconnectEnabled) {
-          console.log("ストリーミングを終了します");
+          console.log("Ending stream");
           break;
         }
       } catch (error) {
         if (this.shouldStop) {
-          console.log("ストリーミングを停止しました");
+          console.log("Stream stopped");
           break;
         }
 
@@ -161,7 +161,7 @@ export class XStreamClient {
 
         const shouldRetry = maxRetries === -1 || this.retryCount < maxRetries;
         if (!shouldRetry) {
-          console.error(`❌ 最大リトライ回数に達しました (${maxRetries})`);
+          console.error(`Max retries reached (${maxRetries})`);
           throw error;
         }
 
@@ -173,7 +173,7 @@ export class XStreamClient {
         );
 
         console.log(
-          `⏳ ${this.retryCount + 1}回目の再接続を${delayMs}ms後に試行します...`,
+          `Attempting reconnection ${this.retryCount + 1} after ${delayMs}ms...`,
         );
         await this._sleep(delayMs);
         this.retryCount++;
@@ -192,7 +192,7 @@ export class XStreamClient {
     });
 
     console.log(
-      `接続中...${this.retryCount > 0 ? `(リトライ: ${this.retryCount})` : ""}`,
+      `Connecting...${this.retryCount > 0 ? `(retry: ${this.retryCount})` : ""}`,
     );
 
     try {
@@ -205,6 +205,7 @@ export class XStreamClient {
 
       this.stream = response.data;
       this.retryCount = 0; // 接続成功時にリセット
+      console.log("Stream connected successfully");
 
       await new Promise<void>((resolve, reject) => {
         this.stream!.on("data", async (chunk: Buffer) => {
@@ -230,23 +231,23 @@ export class XStreamClient {
         });
 
         this.stream!.on("error", (error: any) => {
-          console.error("ストリームエラー:", error.message || error);
+          console.error("Stream error:", error.message || error);
           reject(error);
         });
 
         this.stream!.on("close", () => {
-          console.log("✓ ストリーム接続が閉じました");
+          console.log("Stream connection closed");
           resolve();
         });
 
         this.stream!.on("end", () => {
-          console.log("✓ ストリーム接続が終了しました");
+          console.log("Stream connection ended");
           resolve();
         });
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`✗ X APIストリーム接続エラー: ${message}`);
+      console.error(`X API stream connection error: ${message}`);
       throw error;
     }
   }
@@ -258,11 +259,13 @@ export class XStreamClient {
 
   private async _killAllConnections(): Promise<void> {
     try {
-      console.warn("⚠️ 429を検出。接続をキルしてから再試行します...");
+      console.warn(
+        "Rate limit (429) detected. Killing connections and retrying...",
+      );
       await this.client.delete("/2/connections/all");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`接続キルに失敗しました: ${message}`);
+      console.error(`Failed to kill connections: ${message}`);
     }
   }
 
@@ -281,7 +284,7 @@ export class XStreamClient {
   }
 
   stop(): void {
-    console.log("ストリーミング停止要求を受け取りました...");
+    console.log("Stop streaming request received...");
     this.shouldStop = true;
     if (this.stream) {
       this.stream.destroy();

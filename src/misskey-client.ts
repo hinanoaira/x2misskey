@@ -28,12 +28,12 @@ export class MisskeyClient {
 
       const response = await this.client.post("/api/notes/create", payload);
       console.log(
-        `✓ Posted to ${this.mapping.misskeyServer} for user ${this.mapping.misskeyUserId}`,
+        `Posted to ${this.mapping.misskeyServer} for user ${this.mapping.misskeyUserId}`,
       );
       return response.data;
     } catch (error) {
       console.error(
-        `✗ Failed to post to ${this.mapping.misskeyServer}:`,
+        `Failed to post to ${this.mapping.misskeyServer}:`,
         error instanceof Error ? error.message : error,
       );
       throw error;
@@ -85,7 +85,7 @@ export class MisskeyClient {
       return fileData.id || null;
     } catch (error) {
       console.error(
-        `✗ Failed to upload media to ${this.mapping.misskeyServer}:`,
+        `Failed to upload media to ${this.mapping.misskeyServer}:`,
         error instanceof Error ? error.message : error,
       );
       return null;

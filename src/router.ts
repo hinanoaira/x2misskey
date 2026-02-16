@@ -26,7 +26,7 @@ export class TweetRouter {
       this.misskeyClients.set(mapping.xUserId, client);
     }
 
-    console.log(`✓ Initialized ${this.misskeyClients.size} Misskey clients`);
+    console.log(`Initialized ${this.misskeyClients.size} Misskey clients`);
   }
 
   async routeTweet(message: StreamMessage): Promise<void> {
@@ -186,9 +186,9 @@ export class TweetRouter {
     for (const [xUserId, client] of this.misskeyClients.entries()) {
       const ok = await client.ping();
       if (ok) {
-        console.log(`✓ Connected to ${client.getServerUrl()}`);
+        console.log(`Connected to ${client.getServerUrl()}`);
       } else {
-        console.error(`✗ Failed to connect to Misskey for X user ${xUserId}`);
+        console.error(`Failed to connect to Misskey for X user ${xUserId}`);
       }
     }
   }

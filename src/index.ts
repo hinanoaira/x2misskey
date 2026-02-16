@@ -5,7 +5,7 @@ import { TweetRouter } from "./router.js";
 
 async function main() {
   try {
-    console.log("🚀 X2Misskey ストリーミングサーバーを起動中...\n");
+    console.log("Starting X2Misskey streaming server...\n");
 
     // 設定を読み込み
     const config = loadConfig();
@@ -21,11 +21,11 @@ async function main() {
     console.log("");
 
     // ストリーミングを開始
-    console.log("📡 X APIのストリーミングを開始します...\n");
+    console.log("Starting X API stream...\n");
 
     // グレースフルシャットダウンハンドラ
     const shutdown = () => {
-      console.log("\n⚠️ シャットダウンシグナルを受け取りました...");
+      console.log("\nShutdown signal received...");
       xClient.stop();
     };
 
@@ -36,14 +36,14 @@ async function main() {
       const tweet = message.data;
       const author = message.includes?.users?.[0]?.username || "unknown";
 
-      console.log(`\n📝 新しいツイート (@${author}): ${tweet.id}`);
-      console.log(`   テキスト: ${tweet.text.substring(0, 50)}...`);
+      console.log(`\nNew tweet from @${author}: ${tweet.id}`);
+      console.log(`   Text: ${tweet.text.substring(0, 50)}...`);
 
       await router.routeTweet(message);
     });
   } catch (error) {
     console.error(
-      "❌ エラーが発生しました:",
+      "An error occurred:",
       error instanceof Error ? error.message : error,
     );
     process.exit(1);
